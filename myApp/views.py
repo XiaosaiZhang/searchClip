@@ -5,13 +5,15 @@ from django.http import HttpResponse
 # 查询图片
 from image_retriever.engine import Engine
 import torch
+
 from PIL import Image
 from django.views.decorators.http import require_GET
 from urllib.parse import unquote
 
 # %%
 engine = Engine()
-engine.load_model("/home/long/model/clip-vit-large-patch14", device="cuda", dtype=torch.float32)
+engine.load_model("clip-vit-large-patch14", device="cuda", dtype=torch.float32)
+
 engine.add_images_by_directory_path("images")
 len(engine)
 
@@ -93,7 +95,7 @@ def image_database(request):
 @require_GET
 def search_images(request):
     query = unquote(request.GET.get('query', ''))
-    simimarity, paths = engine.search_image_by_text(query, 2, return_type="path")
+    simimarity, paths = engine.search_image_by_text(query, 4, return_type="path")
     image_dir = os.path.join(settings.MEDIA_ROOT, 'images')
 
     if not os.path.exists(image_dir):
@@ -111,22 +113,15 @@ def search_images(request):
     return JsonResponse({'images': images})
 
 # 删除图片
-@require_GET
+@csrf_exempt
 def delete(request):
-    query = unquote(request.GET.get('query', ''))
-    simimarity, paths = engine.search_image_by_text(query, 2, return_type="path")
-    image_dir = os.path.join(settings.MEDIA_ROOT, 'images')
-
-    if not os.path.exists(image_dir):
-        return JsonResponse({'images': []})
-
-    images = []
-    # for image_name in os.listdir(image_dir):
-    #     image_url = settings.MEDIA_URL + 'images/' + image_name
-    #     pic = Pic(name=image_name, url=image_url)
-    #     images.append(pic.to_dict())
-    for image_name in paths:
-        #image_url = settings.MEDIA_URL + 'images/' + image_name
-        pic = Pic(name=image_name, url=image_name)
-        images.append(pic.to_dict())
-    return JsonResponse({'images': images})
+    if request.method == 'POST':
+        image_name = request.POST.get('image_name', '')
+        image_path = os.path.join('images', image_name)
+        if os.path.exists(image_path):
+            os.remove(image_path)
+            engine.remove_image(image_path)
+            return JsonResponse({'message': 'Image deleted successfully'})
+        else:
+            return JsonResponse({'message': 'Image not found'}, status=404)
+    return JsonResponse({'message': 'Invalid request'}, status=400)

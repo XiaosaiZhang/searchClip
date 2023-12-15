@@ -2,23 +2,109 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>文搜图</title>
+    <title>CLIP_PAINTIING_ROOM</title>
+    <style>
+        h1 {
+            color: #ff4500;
+            text-shadow: 2px 2px 4px #000;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .custom-upload {
+            display: inline-block;
+            background-color: #3498db;
+            color: #fff;
+            cursor: pointer;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .custom-upload:hover {
+            background-color: #2980b9;
+        }
+        .custom-upload input[type="file"] {
+            opacity: 0;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            left: 0;
+            top: 0;
+            cursor: pointer;
+        }
+        input[type="text"] {
+            padding: 10px;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+        }
+        .image-container {
+            position: relative;
+            display: inline-block;
+            margin: 10px;
+            overflow: hidden; /* 防止抖动溢出 */
+        }
+        .image-container img {
+            width: 100px;
+            height: 100px;
+            transition: transform 0.5s; /* 添加图片变换效果 */
+        }
+        .image-container.selected img {
+            transform: scale(1.8); /* 选中状态时放大图片 */
+            filter: grayscale(50%); /* 选中状态时将图片变为灰色 */
+        }
+        .image-container.selected {
+            animation: shake 1s ease-in-out infinite; /* 添加缓慢抖动效果 */
+        }
+
+        @keyframes shake {
+            0%, 100% {
+                transform: translateX(0);
+            }
+            25%, 75% {
+                transform: translateX(-2px);
+            }
+            50% {
+                transform: translateX(2px);
+            }
+        }
+    </style>
 </head>
 <body>
-<h1>Upload Image</h1>
+<h1>welcome to the pixivc club!</h1>
 <form id="uploadForm" method="post" enctype="multipart/form-data">
-    <input type="file" name="image" required>
+    <label for="fileInput" class="custom-upload">
+        Choose File
+        <input type="file" id="fileInput" name="image" required>
+    </label>
     <button type="submit">Upload</button>
 </form>
 
-<button id="showGallery">图库</button>
+<button id="showGallery">图库展示</button>
 <div id="gallery"></div>
+
+<button id="deleteButton">删除图片</button>
 
 <h2>图片搜索</h2>
 <input type="text" id="searchQuery" placeholder="输入搜索词">
 <button id="searchButton">查询</button>
 <div id="searchResults"></div>
 
+
+
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
     document.getElementById('uploadForm').addEventListener('submit', function (e) {
         e.preventDefault();
@@ -39,14 +125,33 @@
                 var gallery = document.getElementById('gallery');
                 gallery.innerHTML = '';
                 data.images.forEach(pic => {
+                    var imageContainer = document.createElement('div');
+                    imageContainer.classList.add('image-container');
                     var img = document.createElement('img');
                     img.src = pic.url;
                     img.alt = pic.name;
                     img.width = 100;
-                    gallery.appendChild(img);
+                    imageContainer.appendChild(img);
+                    gallery.appendChild(imageContainer);
+
+
+                    // 添加点击事件处理程序
+                    imageContainer.addEventListener('click', function (event) {
+                        // 切换选中状态
+                        imageContainer.classList.toggle('selected');
+                        event.stopPropagation(); // 阻止事件冒泡，防止触发空白区域的点击事件
+                    });
                 });
             })
             .catch(error => console.error('Error:', error));
+    });
+
+    // 点击空白区域取消选中状态
+    document.addEventListener('click', function (event) {
+        var selectedImages = document.querySelectorAll('.image-container.selected');
+        selectedImages.forEach(function (imageContainer) {
+            imageContainer.classList.remove('selected');
+        });
     });
 
     document.getElementById('searchButton').addEventListener('click', function () {
@@ -66,6 +171,36 @@
             })
             .catch(error => console.error('Error:', error));
     });
+
+    document.getElementById('deleteButton').addEventListener('click', function () {
+    // 获取所有选中的图片
+    var selectedImages = document.querySelectorAll('.image-container.selected');
+    selectedImages.forEach(function (imageContainer) {
+        // 获取图片的名称
+        var image_name = imageContainer.querySelector('img').alt;
+
+        // 创建一个FormData对象，用于发送POST请求
+        var formData = new FormData();
+        formData.append('image_name', image_name);
+
+        // 发送POST请求到服务器，请求删除图片
+        fetch('/delete/', {
+            method: 'POST',
+            body: formData,
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (response.ok) {
+                    // 如果服务器返回了成功的响应，那么删除图片容器
+                    imageContainer.remove();
+                } else {
+                    // 如果服务器返回了错误的响应，那么显示错误消息
+                    alert(data.message);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+});
 </script>
 </body>
 </html>
